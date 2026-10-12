@@ -442,6 +442,8 @@
   </div>
 </div>
 
+<audio id="bgMusic" loop preload="none" src="your-song.mp3"></audio>
+
 <div class="stage">
 
   <div class="card-wrap" id="cardWrap">
@@ -483,38 +485,35 @@
 
       <p class="rsvp-note">يسعدنا حضوركم بيننا</p>
 
-      <!-- ====== معرض الصور ======
-           استبدلي src بروابط صوركم، أو ارفعي الصور هنا في نفس مجلد الملف
-           وعدّلي المسار (مثلاً: src="photo1.jpg"). كل مربع فاضي = مكان صورة واحدة.
-           يمكنك حذف مربع أو إضافة المزيد بنسخ ولصق عنصر <div class="gallery-item">...</div> -->
       <div class="divider">
         <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 L14 10 L22 12 L14 14 L12 22 L10 14 L2 12 L10 10 Z"/></svg>
       </div>
+      
       <div class="gallery" id="gallery">
         <div class="gallery-item">
-          <img src="" alt="صورة 1" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="gallery-placeholder">
+          <img src="1.jpg" alt="صورة 1" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="gallery-placeholder" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-5 5-3-3-5 5"/></svg>
             <span>صورة 1</span>
           </div>
         </div>
         <div class="gallery-item">
-          <img src="" alt="صورة 2" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="gallery-placeholder">
+          <img src="2.jpg" alt="صورة 2" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="gallery-placeholder" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-5 5-3-3-5 5"/></svg>
             <span>صورة 2</span>
           </div>
         </div>
         <div class="gallery-item">
-          <img src="" alt="صورة 3" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="gallery-placeholder">
+          <img src="3.jpg" alt="صورة 3" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="gallery-placeholder" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-5 5-3-3-5 5"/></svg>
             <span>صورة 3</span>
           </div>
         </div>
         <div class="gallery-item">
-          <img src="" alt="صورة 4" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-          <div class="gallery-placeholder">
+          <img src="4.jpg" alt="صورة 4" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+          <div class="gallery-placeholder" style="display:none;">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8.5" cy="10" r="1.5"/><path d="M21 16l-5-5-5 5-3-3-5 5"/></svg>
             <span>صورة 4</span>
           </div>
@@ -591,7 +590,6 @@
     if(opened) return;
     opened = true;
 
-    // tiny "crack" shake before the seal breaks
     seal.style.animation = 'none';
     seal.style.transition = 'transform .18s ease';
     let shakes = 0;
@@ -616,7 +614,6 @@
     }
   });
 
-  // ---------- countdown to Oct 16, 2026, 18:00 (assumed time) ----------
   const weddingDate = new Date('2026-10-16T18:00:00');
   const elDays = document.getElementById('cd-days');
   const elHours = document.getElementById('cd-hours');
@@ -641,41 +638,87 @@
   updateCountdown();
   setInterval(updateCountdown, 1000);
 
-  // ---------- gentle self-generated ambient chime (no external audio files) ----------
+  const bgMusic = document.getElementById('bgMusic');
+  let useRealFile = true;
+  bgMusic.addEventListener('error', () => { useRealFile = false; });
+
   let audioCtx = null;
   let musicOn = false;
-  let chimeTimer = null;
+  let melodyTimeout = null;
 
-  function playChime(){
-    if(!audioCtx) return;
-    const notes = [523.25, 659.25, 784.0, 987.77]; // C5 E5 G5 B5 - soft arpeggio
-    const note = notes[Math.floor(Math.random()*notes.length)];
-    const now = audioCtx.currentTime;
+  const melody = [
+    { f: 392.00, d: 0.9 },
+    { f: 440.00, d: 0.45 },
+    { f: 493.88, d: 0.9 },
+    { f: 587.33, d: 1.3 },
+    { f: 523.25, d: 0.9 },
+    { f: 493.88, d: 0.45 },
+    { f: 440.00, d: 0.9 },
+    { f: 392.00, d: 1.6 },
+  ];
+
+  function playNote(freq, dur, startTime){
     const osc = audioCtx.createOscillator();
+    const osc2 = audioCtx.createOscillator();
     const gain = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 1800;
     osc.type = 'sine';
-    osc.frequency.value = note;
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.05, now + 0.08);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.6);
-    osc.connect(gain).connect(audioCtx.destination);
-    osc.start(now);
-    osc.stop(now + 1.7);
+    osc2.type = 'triangle';
+    osc.frequency.value = freq;
+    osc2.frequency.value = freq / 2;
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(0.045, startTime + 0.15);
+    gain.gain.exponentialRampToValueAtTime(0.0001, startTime + dur);
+    osc.connect(filter);
+    osc2.connect(filter);
+    filter.connect(gain).connect(audioCtx.destination);
+    osc.start(startTime); osc2.start(startTime);
+    osc.stop(startTime + dur + 0.05); osc2.stop(startTime + dur + 0.05);
+  }
+
+  function scheduleMelody(){
+    if(!musicOn || !audioCtx) return;
+    let t = audioCtx.currentTime + 0.1;
+    let totalDur = 0;
+    melody.forEach(note => {
+      playNote(note.f, note.d, t);
+      t += note.d;
+      totalDur += note.d;
+    });
+    melodyTimeout = setTimeout(scheduleMelody, totalDur * 1000 + 600);
   }
 
   function toggleMusic(){
+    musicOn = !musicOn;
+    musicToggle.classList.toggle('muted', !musicOn);
+
+    if(musicOn){
+      if(useRealFile){
+        bgMusic.volume = 0.5;
+        const p = bgMusic.play();
+        if(p && p.catch){
+          p.catch(() => {
+            useRealFile = false;
+            startGeneratedMelody();
+          });
+        }
+      } else {
+        startGeneratedMelody();
+      }
+    } else {
+      bgMusic.pause();
+      clearTimeout(melodyTimeout);
+    }
+  }
+
+  function startGeneratedMelody(){
     if(!audioCtx){
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
-    musicOn = !musicOn;
-    musicToggle.classList.toggle('muted', !musicOn);
-    if(musicOn){
-      if(audioCtx.state === 'suspended') audioCtx.resume();
-      playChime();
-      chimeTimer = setInterval(playChime, 2200);
-    } else {
-      clearInterval(chimeTimer);
-    }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    scheduleMelody();
   }
 
   musicToggle.addEventListener('click', toggleMusic);
